@@ -42,7 +42,7 @@
         let editingJobId = null;
         let isAuthenticated = false;
         let activeModal = null; // null, 'terms', or 'privacy'
-        const ADMIN_PASSWORD = "admin123";
+        const ADMIN_PASSWORD = "T3chN0v@!2026Xyz";
 
         // Initial Data
         const initialJobs = [
@@ -155,7 +155,7 @@
                 isAuthenticated = true;
                 render();
             } else {
-                alert("Incorrect password! Hint: use admin123");
+                alert("Incorrect password!");
             }
         }
 
@@ -356,7 +356,7 @@
                                 <h2 class="text-2xl font-bold text-slate-900 mb-2">Admin Access</h2>
                                 <p class="text-slate-500 mb-6 text-sm">Please enter the password to post or manage jobs.</p>
                                 <form onsubmit="handleLogin(event)" class="space-y-4">
-                                    <input type="password" id="admin_password" required placeholder="Enter password (admin123)" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"/>
+                                    <input type="password" id="admin_password" required placeholder="Enter password" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"/>
                                     <button type="submit" class="w-full bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors flex justify-center items-center gap-2">
                                         <i data-lucide="unlock" class="w-4 h-4"></i> Unlock Panel
                                     </button>
