@@ -10,6 +10,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Quill.js for Rich Text Editor -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Configure Tailwind to use Hind Siliguri as default -->
@@ -34,6 +38,20 @@
             -webkit-box-orient: vertical;  
             overflow: hidden;
         }
+        
+        /* Custom styles for Quill Editor & Rendered Content */
+        .ql-toolbar.ql-snow { border-color: #cbd5e1; border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; }
+        .ql-container.ql-snow { border-color: #cbd5e1; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; font-family: 'Hind Siliguri', sans-serif; font-size: 1rem; }
+        .ql-editor { min-height: 160px; }
+        
+        /* Styles for showing rich text on job board */
+        .job-desc-content h1, .job-desc-content h2, .job-desc-content h3 { font-weight: 700; color: #0f172a; margin-top: 1em; margin-bottom: 0.5em; }
+        .job-desc-content h1 { font-size: 1.5em; }
+        .job-desc-content h2 { font-size: 1.25em; }
+        .job-desc-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+        .job-desc-content ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
+        .job-desc-content p { margin-bottom: 0.5rem; }
+        .job-desc-content strong { font-weight: 700; color: #1e293b; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen">
@@ -168,7 +186,7 @@
 
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-2">Job Description</label>
-                        <textarea id="description" required rows="4" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Describe the role, responsibilities, and requirements..."></textarea>
+                        <div id="editor-container" class="bg-white"></div>
                     </div>
 
                     <div class="pt-4 border-t border-slate-100 flex justify-end gap-3">
@@ -341,12 +359,13 @@
 
         window.filterJobs = () => {
             const query = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
-            const filtered = window.jobs.filter(job => 
-                job.title.toLowerCase().includes(query) || 
-                job.company.toLowerCase().includes(query) ||
-                job.location.toLowerCase().includes(query) ||
-                job.description.toLowerCase().includes(query)
-            );
+            const filtered = window.jobs.filter(job => {
+                const plainDesc = window.stripHtml(job.description).toLowerCase();
+                return job.title.toLowerCase().includes(query) || 
+                       job.company.toLowerCase().includes(query) ||
+                       job.location.toLowerCase().includes(query) ||
+                       plainDesc.includes(query);
+            });
             window.renderJobs(filtered);
         };
 
@@ -372,7 +391,8 @@
             } else {
                 container.innerHTML = jobsToRender.map(job => {
                     const isExpanded = window.expandedJobIds.has(job.id);
-                    const isLong = job.description.length > 150;
+                    const plainDesc = window.stripHtml(job.description);
+                    const isLong = plainDesc.length > 150;
                     return `
                     <div class="bg-white border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow group">
                         <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
@@ -386,10 +406,10 @@
                                     <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold">${job.type}</span>
                                 </div>
                                 
-                                <div class="mt-4 text-slate-600 text-sm leading-relaxed">
-                                    <p class="${!isExpanded && isLong ? 'line-clamp-2' : ''}">${job.description}</p>
+                                <div class="mt-4 text-slate-600 text-sm leading-relaxed job-desc-content">
+                                    ${isExpanded ? job.description : `<p class="line-clamp-2">${plainDesc}</p>`}
                                     ${isLong ? `
-                                        <button onclick="toggleDesc('${job.id}')" class="text-blue-600 font-medium hover:underline mt-1 flex items-center gap-1">
+                                        <button onclick="toggleDesc('${job.id}')" class="text-blue-600 font-medium hover:underline mt-2 flex items-center gap-1">
                                             ${isExpanded ? `Show Less <i data-lucide="chevron-up" class="w-4 h-4"></i>` : `See More <i data-lucide="chevron-down" class="w-4 h-4"></i>`}
                                         </button>
                                     ` : ''}
@@ -416,6 +436,12 @@
                 return;
             }
 
+            const richDescription = window.quill.root.innerHTML;
+            if (window.quill.getText().trim().length === 0) {
+                alert("Please write a job description.");
+                return;
+            }
+
             const btn = document.getElementById('submitBtn');
             btn.innerText = "Saving..."; btn.disabled = true;
 
@@ -425,7 +451,7 @@
                 location: document.getElementById('location').value,
                 type: document.getElementById('jobType').value,
                 applyLink: document.getElementById('applyLink').value,
-                description: document.getElementById('description').value,
+                description: richDescription,
                 date: new Date().toLocaleDateString(),
                 createdAt: window.editingJobId ? window.jobs.find(j=>j.id===window.editingJobId).createdAt : Date.now()
             };
@@ -476,7 +502,9 @@
             document.getElementById('location').value = job.location;
             document.getElementById('jobType').value = job.type;
             document.getElementById('applyLink').value = job.applyLink || '';
-            document.getElementById('description').value = job.description;
+            
+            // Set rich text to Quill editor
+            window.quill.root.innerHTML = job.description;
             
             document.getElementById('form-title').innerText = 'Edit Job Post';
             document.getElementById('form-subtitle').innerText = 'Update the details of your job post below.';
@@ -497,6 +525,7 @@
         window.resetForm = (full = false) => {
             document.getElementById('jobForm').reset();
             window.editingJobId = null;
+            if(window.quill) window.quill.root.innerHTML = ''; // Clear Quill editor
             document.getElementById('form-title').innerText = 'Post a New Job';
             document.getElementById('form-subtitle').innerText = 'Fill out the form below to publish a job on the board.';
             document.getElementById('submitBtn').innerText = 'Publish Job';
@@ -534,8 +563,29 @@
             document.body.style.overflow = 'auto';
         };
 
+        // Helper function to strip HTML tags for preview and search
+        window.stripHtml = (html) => {
+            const tmp = document.createElement("DIV");
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || "";
+        };
+
         // Initial setup on load
         lucide.createIcons();
+        
+        // Initialize Quill Editor
+        window.quill = new Quill('#editor-container', {
+            theme: 'snow',
+            placeholder: 'Write the job description here... (You can use bold, lists, and headings)',
+            modules: {
+                toolbar: [
+                    [{ 'header': [1, 2, false] }],
+                    ['bold', 'italic', 'underline'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['clean']
+                ]
+            }
+        });
     </script>
 </body>
 </html>
