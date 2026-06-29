@@ -4,10 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BD JobHub - Find Your Dream Job</title>
+    
+    <!-- Google Fonts: Hind Siliguri -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Configure Tailwind to use Hind Siliguri as default -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Hind Siliguri"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; }
+        body { font-family: 'Hind Siliguri', sans-serif; }
         .line-clamp-2 {
             display: -webkit-box;
             -webkit-line-clamp: 2;
