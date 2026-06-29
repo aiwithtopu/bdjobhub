@@ -3,528 +3,521 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BD JobHub - Job Portal</title>
-    <!-- Tailwind CSS via CDN -->
+    <title>BD JobHub - Find Your Dream Job</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons via CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* Custom scrollbar for textareas and modals */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        body { font-family: system-ui, -apple-system, sans-serif; }
         .line-clamp-2 {
             display: -webkit-box;
             -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
+            -webkit-box-orient: vertical;  
             overflow: hidden;
-        }
-        /* Modal Animation */
-        @keyframes modalFadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .modal-animate {
-            animation: modalFadeIn 0.2s ease-out forwards;
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen">
 
-    <!-- App Container -->
-    <div id="app" class="flex-grow flex flex-col relative"></div>
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2 cursor-pointer" onclick="showTab('board')">
+                    <div class="bg-blue-600 p-2 rounded-lg text-white">
+                        <i data-lucide="briefcase" class="w-5 h-5"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-900">BD JobHub</span>
+                </div>
+                <div class="flex gap-4">
+                    <button id="nav-board" onclick="showTab('board')" class="px-4 py-2 rounded-md font-medium transition-colors bg-blue-50 text-blue-700 flex items-center gap-2">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                        <span class="hidden sm:inline">Job Board</span>
+                    </button>
+                    <button id="nav-admin" onclick="showTab('admin')" class="px-4 py-2 rounded-md font-medium transition-colors bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                        <span class="hidden sm:inline">Post a Job</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
 
-    <script>
-        // --- STATE MANAGEMENT ---
-        let activeTab = 'board';
-        let expandedJobId = null;
-        let editingJobId = null;
-        let isAuthenticated = false;
-        let activeModal = null; // null, 'terms', or 'privacy'
-        const ADMIN_PASSWORD = "T3chN0v@!2026Xyz";
+    <!-- Main Content -->
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+        
+        <!-- Database Warning (Shows only if Firebase is missing on Vercel) -->
+        <div id="db-warning" class="hidden mb-6 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative">
+            <strong class="font-bold">Notice:</strong>
+            <span class="block sm:inline"> Database is not connected! To save posts permanently on Vercel, please add your Firebase Config in the code.</span>
+        </div>
 
-        // Initial Data
-        const initialJobs = [
-            {
-                id: 1,
-                title: "Frontend Developer (React)",
-                company: "Tech Solutions Ltd",
-                location: "Dhaka, Bangladesh (Remote)",
-                type: "Full-time",
-                applyLink: "https://example.com/apply",
-                description: "We are looking for an experienced React developer to join our dynamic team. You will be responsible for building responsive user interfaces and integrating with backend APIs. Strong proficiency in JavaScript, React.js, and Tailwind CSS is required.",
-                date: new Date().toLocaleDateString()
-            },
-            {
-                id: 2,
-                title: "Digital Marketing Specialist",
-                company: "Creative Media Agency",
-                location: "Gulshan, Dhaka",
-                type: "Part-time",
-                applyLink: "https://example.com/apply",
-                description: "Join our creative team to manage social media campaigns, SEO, and content marketing strategies. Must have 2+ years of experience in digital marketing.",
-                date: new Date().toLocaleDateString()
-            }
-        ];
+        <!-- JOB BOARD VIEW -->
+        <div id="view-board" class="space-y-6">
+            <div class="bg-blue-600 rounded-2xl p-8 text-white text-center shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 right-0 opacity-10 pointer-events-none">
+                    <i data-lucide="briefcase" class="w-48 h-48 -mt-10 -mr-10"></i>
+                </div>
+                <h1 class="text-3xl md:text-4xl font-bold mb-4">Find Your Dream Job Today</h1>
+                <p class="text-blue-100 mb-8 max-w-2xl mx-auto">Explore the latest job opportunities matching your skills and expertise.</p>
+                
+                <div class="bg-white rounded-lg p-2 flex items-center max-w-xl mx-auto shadow-md">
+                    <i data-lucide="search" class="text-slate-400 ml-2 w-5 h-5"></i>
+                    <input type="text" id="searchInput" onkeyup="filterJobs()" placeholder="Search job title, company, or keyword..." class="w-full px-4 py-2 outline-none text-slate-800"/>
+                </div>
+            </div>
 
-        // --- LEGAL CONTENT ---
-        const TERMS_CONTENT = `
-            <h3 class="text-lg font-bold text-slate-900 mb-2">1. Acceptance of Terms</h3>
-            <p class="mb-4">By accessing and using BD JobHub, you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by these terms, please do not use this service.</p>
+            <div class="flex justify-between items-end mt-10 mb-4">
+                <h2 class="text-2xl font-bold text-slate-900">Recent Jobs</h2>
+                <span id="job-count" class="text-sm text-slate-500">Loading jobs...</span>
+            </div>
+
+            <div id="job-list" class="grid gap-4">
+                <!-- Job cards will be injected here by JavaScript -->
+                <div class="text-center py-12 bg-white rounded-xl border border-slate-200">
+                    <div class="animate-pulse flex flex-col items-center">
+                        <div class="h-12 w-12 bg-slate-200 rounded-full mb-3"></div>
+                        <div class="h-4 bg-slate-200 rounded w-1/4 mb-2"></div>
+                        <div class="h-3 bg-slate-200 rounded w-1/3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN PANEL VIEW -->
+        <div id="view-admin" class="max-w-2xl mx-auto hidden">
             
-            <h3 class="text-lg font-bold text-slate-900 mb-2">2. Description of Service</h3>
-            <p class="mb-4">BD JobHub provides a platform for employers to post job opportunities and for job seekers to find and apply for these roles. We do not guarantee employment or the accuracy of the job postings.</p>
-            
-            <h3 class="text-lg font-bold text-slate-900 mb-2">3. User Conduct</h3>
-            <p class="mb-4">You agree to use the service only for lawful purposes. You are prohibited from posting incomplete, false, or inaccurate biographical information or jobs that do not represent real employment opportunities.</p>
+            <!-- Login Screen -->
+            <div id="login-screen" class="bg-white border border-slate-200 rounded-2xl p-8 md:p-12 shadow-sm max-w-md mx-auto text-center mt-10">
+                <div class="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i data-lucide="lock" class="w-8 h-8 text-slate-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Admin Access Required</h2>
+                <p class="text-slate-500 mb-6 text-sm">Enter the secret password to post, edit, or delete jobs.</p>
+                
+                <input type="password" id="admin-password" class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 text-center tracking-widest" placeholder="Enter Password">
+                <button onclick="login()" class="w-full bg-slate-900 text-white px-4 py-3 rounded-lg font-bold hover:bg-blue-600 transition-colors flex justify-center items-center gap-2">
+                    <i data-lucide="unlock" class="w-4 h-4"></i> Unlock Panel
+                </button>
+            </div>
 
-            <h3 class="text-lg font-bold text-slate-900 mb-2">4. Employer Responsibilities</h3>
-            <p class="mb-4">Employers are solely responsible for their postings. You agree to ensure that all job requirements and descriptions comply with applicable local labor laws.</p>
-            
-            <h3 class="text-lg font-bold text-slate-900 mb-2">5. Modifications</h3>
-            <p>We reserve the right to modify these terms at any time. Your continued use of the platform after any such changes constitutes your acceptance of the new Terms of Use.</p>
-        `;
+            <!-- Admin Dashboard (Hidden by default) -->
+            <div id="admin-dashboard" class="hidden">
+                <div class="mb-6 flex justify-between items-start">
+                    <div>
+                        <h2 id="form-title" class="text-2xl font-bold text-slate-900">Post a New Job</h2>
+                        <p id="form-subtitle" class="text-slate-500">Fill out the form below to publish a job on the board.</p>
+                    </div>
+                    <button onclick="logout()" class="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-md transition-colors">
+                        <i data-lucide="lock" class="w-4 h-4"></i> Lock Panel
+                    </button>
+                </div>
 
-        const PRIVACY_CONTENT = `
-            <h3 class="text-lg font-bold text-slate-900 mb-2">1. Information We Collect</h3>
-            <p class="mb-4">We collect information you provide directly to us, such as when you create a job post or apply for a position. This may include your name, email address, company details, and resume links.</p>
-            
-            <h3 class="text-lg font-bold text-slate-900 mb-2">2. How We Use Information</h3>
-            <p class="mb-4">We use the information we collect to operate, maintain, and improve our services. We use employer data to display job listings and applicant data to facilitate the application process.</p>
-            
-            <h3 class="text-lg font-bold text-slate-900 mb-2">3. Data Sharing</h3>
-            <p class="mb-4">We do not sell your personal data. We only share applicant information directly with the specific employer whose job you are applying for.</p>
+                <form id="jobForm" onsubmit="handlePostJob(event)" class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Job Title</label>
+                        <input type="text" id="title" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Senior Frontend Developer"/>
+                    </div>
 
-            <h3 class="text-lg font-bold text-slate-900 mb-2">4. Cookies and Tracking</h3>
-            <p class="mb-4">We may use basic browser features like LocalStorage to save your session states and preferences (e.g., keeping you logged into the admin panel).</p>
-            
-            <h3 class="text-lg font-bold text-slate-900 mb-2">5. Data Security</h3>
-            <p>We take reasonable measures to help protect information about you from loss, theft, misuse, and unauthorized access. However, no internet transmission is completely secure.</p>
-        `;
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Company Name</label>
+                            <input type="text" id="company" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Google Bangladesh"/>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Location</label>
+                            <input type="text" id="location" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Dhaka (Remote)"/>
+                        </div>
+                    </div>
 
-        // Load Jobs from Local Storage
-        let jobs = [];
-        const savedJobs = localStorage.getItem('vanilla_jobs');
-        if (savedJobs) {
-            jobs = JSON.parse(savedJobs);
-        } else {
-            jobs = [...initialJobs];
-            localStorage.setItem('vanilla_jobs', JSON.stringify(jobs));
-        }
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Job Type</label>
+                            <select id="jobType" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="Full-time">Full-time</option>
+                                <option value="Part-time">Part-time</option>
+                                <option value="Contract">Contract</option>
+                                <option value="Internship">Internship</option>
+                                <option value="Freelance">Freelance</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Application Link</label>
+                            <input type="url" id="applyLink" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. https://forms.gle/..."/>
+                        </div>
+                    </div>
 
-        // --- FUNCTIONS ---
-        function saveToLocal() {
-            localStorage.setItem('vanilla_jobs', JSON.stringify(jobs));
-        }
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Job Description</label>
+                        <textarea id="description" required rows="4" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Describe the role, responsibilities, and requirements..."></textarea>
+                    </div>
 
-        function switchTab(tab) {
-            activeTab = tab;
-            if (tab === 'board') editingJobId = null;
-            render();
-        }
+                    <div class="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                        <button type="button" onclick="resetForm(true)" class="px-6 py-2.5 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+                        <button type="submit" id="submitBtn" class="bg-blue-600 text-white px-8 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm">Publish Job</button>
+                    </div>
+                </form>
 
-        function toggleDescription(id) {
-            expandedJobId = expandedJobId === id ? null : id;
-            render();
-        }
+                <div class="mt-10" id="admin-job-list-container">
+                    <h3 class="text-lg font-bold text-slate-900 mb-4">Manage Posted Jobs</h3>
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" id="admin-job-list">
+                        <!-- Admin job list goes here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
-        function openModal(type) {
-            activeModal = type;
-            document.body.style.overflow = 'hidden'; // Prevent background scrolling
-            render();
-        }
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-8 mt-auto">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="text-slate-500 text-sm">
+                    &copy; <script>document.write(new Date().getFullYear())</script> BD JobHub. All rights reserved.
+                </div>
+                <div class="flex gap-6 text-sm font-medium">
+                    <button onclick="openModal('Terms of Use', TERMS_CONTENT)" class="text-slate-600 hover:text-blue-600 transition-colors">Terms of Use</button>
+                    <button onclick="openModal('Privacy Policy', PRIVACY_CONTENT)" class="text-slate-600 hover:text-blue-600 transition-colors">Privacy Policy</button>
+                </div>
+                <div class="flex gap-4">
+                    <!-- Facebook -->
+                    <a href="#" class="text-slate-400 hover:text-blue-600 transition-colors" title="Facebook">
+                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/></svg>
+                    </a>
+                    <!-- X / Twitter -->
+                    <a href="#" class="text-slate-400 hover:text-slate-900 transition-colors" title="X (Twitter)">
+                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    </a>
+                    <!-- LinkedIn -->
+                    <a href="#" class="text-slate-400 hover:text-blue-700 transition-colors" title="LinkedIn">
+                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.16-3.8c-1.08 0-1.8.57-2.14 1.14v-1h-2.4v9h2.4v-5a1.2 1.2 0 0 1 1.2-1.2 1.2 1.2 0 0 1 1.2 1.2v5h2.4M6.5 8.7a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3m1.2 9.8V9.5h-2.4v9h2.4Z"/></svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
 
-        function closeModal() {
-            activeModal = null;
-            document.body.style.overflow = 'auto'; // Restore scrolling
-            render();
-        }
+    <!-- Modal Background -->
+    <div id="infoModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" onclick="if(event.target === this) closeModal()">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div class="flex justify-between items-center p-6 border-b border-slate-100">
+                <h2 id="modalTitle" class="text-2xl font-bold text-slate-900">Title</h2>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-2 rounded-lg transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="modalContent" class="p-6 overflow-y-auto text-slate-600 prose prose-slate">
+                Content goes here...
+            </div>
+            <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex justify-end">
+                <button onclick="closeModal()" class="bg-slate-900 text-white px-6 py-2 rounded-lg font-medium hover:bg-slate-800 transition-colors">Understand & Close</button>
+            </div>
+        </div>
+    </div>
 
-        // Close modal when clicking outside
-        document.addEventListener('click', function(event) {
-            if (activeModal && event.target.id === 'modal-overlay') {
-                closeModal();
-            }
-        });
+    <!-- Firebase & Core Application Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        function handleLogin(event) {
-            event.preventDefault();
-            const password = document.getElementById('admin_password').value;
-            if (password === ADMIN_PASSWORD) {
-                isAuthenticated = true;
-                render();
-            } else {
-                alert("Incorrect password!");
-            }
-        }
+        // ==========================================
+        // 🔥 VERCEL DEPLOYMENT CONFIGURATION 🔥
+        // To make this work on Vercel permanently, replace `null` with your Firebase Config object!
+        // Example: const USER_FIREBASE_CONFIG = { apiKey: "AIza...", authDomain: "...", projectId: "..." };
+        const USER_FIREBASE_CONFIG = // Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCgDqnAua7BvuqKtoQtLgzvjYr4bYRacSc",
+  authDomain: "jobhubbd.firebaseapp.com",
+  projectId: "jobhubbd",
+  storageBucket: "jobhubbd.firebasestorage.app",
+  messagingSenderId: "66568703977",
+  appId: "1:66568703977:web:5310f5121027a887354578",
+  measurementId: "G-9S8RCHXR81"
+}; 
+        // ==========================================
 
-        function handleLogout() {
-            isAuthenticated = false;
-            editingJobId = null;
-            render();
-        }
+        const configToUse = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : USER_FIREBASE_CONFIG;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'bd-jobhub-v1';
 
-        function handlePostJob(event) {
-            event.preventDefault();
-            
-            const title = document.getElementById('job_title').value;
-            const company = document.getElementById('company_name').value;
-            const location = document.getElementById('job_location').value;
-            const type = document.getElementById('job_type').value;
-            const applyLink = document.getElementById('apply_link').value;
-            const description = document.getElementById('job_description').value;
+        let app, auth, db, currentUser;
+        
+        // Global States
+        window.jobs = [];
+        window.activeTab = 'board';
+        window.isLoggedIn = false;
+        window.editingJobId = null;
+        window.expandedJobIds = new Set();
+        const ADMIN_PASS = "T3chN0v@!2026Xyz";
 
-            if (editingJobId) {
-                // Update
-                jobs = jobs.map(job => 
-                    job.id === editingJobId 
-                    ? { ...job, title, company, location, type, applyLink, description }
-                    : job
-                );
-                editingJobId = null;
-            } else {
-                // Create
-                const newJob = {
-                    id: Date.now(),
-                    title, company, location, type, applyLink, description,
-                    date: new Date().toLocaleDateString()
-                };
-                jobs.unshift(newJob); // add to top
-            }
+        // Initialize Firebase
+        if (configToUse) {
+            app = initializeApp(configToUse);
+            auth = getAuth(app);
+            db = getFirestore(app);
 
-            saveToLocal();
-            switchTab('board');
-        }
-
-        function editJob(id) {
-            editingJobId = id;
-            render();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function deleteJob(id) {
-            if(confirm("Are you sure you want to delete this job post?")) {
-                jobs = jobs.filter(job => job.id !== id);
-                saveToLocal();
-                render();
-            }
-        }
-
-        // Search Filter Function
-        function filterJobs() {
-            const query = document.getElementById('search_input').value.toLowerCase();
-            const jobCards = document.querySelectorAll('.job-card');
-            let visibleCount = 0;
-            
-            jobCards.forEach(card => {
-                // জবের কার্ডের ভেতরের যেকোনো টেক্সট (Title, Company, Description) দিয়ে খুঁজবে
-                if (card.innerText.toLowerCase().includes(query)) {
-                    card.style.display = 'block';
-                    visibleCount++;
+            const initAuth = async () => {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    card.style.display = 'none';
+                    await signInAnonymously(auth);
+                }
+            };
+            initAuth();
+
+            onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+                if (user) {
+                    // Fetch real-time data
+                    const jobsRef = collection(db, 'artifacts', appId, 'public', 'data', 'jobs');
+                    onSnapshot(jobsRef, (snapshot) => {
+                        const fetched = [];
+                        snapshot.forEach(d => fetched.push({id: d.id, ...d.data()}));
+                        // Rule 2: Sort in JS
+                        fetched.sort((a,b) => b.createdAt - a.createdAt);
+                        window.jobs = fetched;
+                        window.filterJobs(); // Re-render
+                    }, (err) => console.error("Error fetching jobs:", err));
                 }
             });
-
-            // মোট জব কাউন্টার আপডেট করবে
-            const countEl = document.getElementById('job_count');
-            if (countEl) countEl.innerText = `${visibleCount} jobs available`;
+        } else {
+            document.getElementById('db-warning').classList.remove('hidden');
+            window.filterJobs(); // Render empty state
         }
 
-        // --- RENDER FUNCTION ---
-        function render() {
-            const app = document.getElementById('app');
+        // ================= UI FUNCTIONS =================
+
+        window.showTab = (tab) => {
+            window.activeTab = tab;
+            document.getElementById('view-board').classList.toggle('hidden', tab !== 'board');
+            document.getElementById('view-admin').classList.toggle('hidden', tab !== 'admin');
             
-            // 1. Navigation
-            let html = `
-                <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
-                    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div class="flex justify-between h-16 items-center">
-                            <div class="flex items-center gap-2 cursor-pointer" onclick="switchTab('board')">
-                                <div class="bg-blue-600 p-2 rounded-lg text-white">
-                                    <i data-lucide="briefcase" class="w-5 h-5"></i>
-                                </div>
-                                <span class="font-bold text-xl tracking-tight text-slate-900">BD JobHub</span>
-                            </div>
-                            
-                            <div class="flex gap-4">
-                                <button onclick="switchTab('board')" class="px-4 py-2 rounded-md font-medium transition-colors ${activeTab === 'board' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}">
-                                    <div class="flex items-center gap-2">
-                                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-                                        <span class="hidden sm:inline">Job Board</span>
-                                    </div>
-                                </button>
-                                <button onclick="switchTab('admin')" class="px-4 py-2 rounded-md font-medium transition-colors ${activeTab === 'admin' ? 'bg-blue-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}">
-                                    <div class="flex items-center gap-2">
-                                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                                        <span class="hidden sm:inline">Post a Job</span>
-                                    </div>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </nav>
-                <main class="flex-grow max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
-            `;
-
-            // 2. Main Content
-            if (activeTab === 'board') {
-                html += `
-                    <div class="space-y-6">
-                        <!-- Hero Banner -->
-                        <div class="bg-blue-600 rounded-2xl p-8 text-white text-center shadow-lg relative overflow-hidden">
-                            <div class="absolute top-0 right-0 opacity-10 pointer-events-none">
-                                <i data-lucide="briefcase" class="w-48 h-48 -mt-10 -mr-10"></i>
-                            </div>
-                            <h1 class="text-3xl md:text-4xl font-bold mb-4">Find Your Dream Job Today</h1>
-                            <p class="text-blue-100 mb-8 max-w-2xl mx-auto">Explore the latest job opportunities matching your skills and expertise.</p>
-                            
-                            <div class="bg-white rounded-lg p-2 flex items-center max-w-xl mx-auto shadow-md">
-                                <i data-lucide="search" class="text-slate-400 ml-2 w-5 h-5"></i>
-                                <input type="text" id="search_input" onkeyup="filterJobs()" placeholder="Search job title, company, or keyword..." class="w-full px-4 py-2 outline-none text-slate-800"/>
-                                <button onclick="filterJobs()" class="bg-blue-600 text-white px-6 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors">Search</button>
-                            </div>
-                        </div>
-
-                        <!-- Job List Header -->
-                        <div class="flex justify-between items-end mt-10 mb-4">
-                            <h2 class="text-2xl font-bold text-slate-900">Recent Jobs</h2>
-                            <span id="job_count" class="text-sm text-slate-500">${jobs.length} jobs available</span>
-                        </div>
-                `;
-
-                if (jobs.length === 0) {
-                    html += `
-                        <div class="text-center py-12 bg-white rounded-xl border border-slate-200">
-                            <i data-lucide="briefcase" class="mx-auto h-12 w-12 text-slate-300 mb-3"></i>
-                            <h3 class="text-lg font-medium text-slate-900">No jobs posted yet</h3>
-                            <button onclick="switchTab('admin')" class="mt-4 text-blue-600 font-medium hover:underline">Post a Job Now</button>
-                        </div>
-                    `;
-                } else {
-                    html += `<div class="grid gap-4">`;
-                    jobs.forEach(job => {
-                        const isExpanded = expandedJobId === job.id;
-                        const needsExpansion = job.description.length > 150;
-                        
-                        html += `
-                            <div class="job-card bg-white border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow group">
-                                <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                                    <div class="flex-grow">
-                                        <h3 class="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">${job.title}</h3>
-                                        <p class="text-slate-600 font-medium mt-1">${job.company}</p>
-                                        
-                                        <div class="flex flex-wrap items-center gap-4 mt-3 text-sm text-slate-500">
-                                            <div class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-4 h-4"></i><span>${job.location}</span></div>
-                                            <div class="flex items-center gap-1.5"><i data-lucide="clock" class="w-4 h-4"></i><span>${job.date}</span></div>
-                                            <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold">${job.type}</span>
-                                        </div>
-                                        
-                                        <div class="mt-4 text-slate-600 text-sm leading-relaxed">
-                                            <p class="${!isExpanded && needsExpansion ? 'line-clamp-2' : ''}">${job.description}</p>
-                                            ${needsExpansion ? `
-                                                <button onclick="toggleDescription(${job.id})" class="text-blue-600 font-medium mt-1 hover:underline focus:outline-none flex items-center gap-1">
-                                                    ${isExpanded ? 'See Less' : 'See More'}
-                                                </button>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="flex flex-col items-end gap-3 mt-4 md:mt-0 flex-shrink-0">
-                                        <a href="${job.applyLink || '#'}" target="_blank" class="w-full md:w-auto text-center bg-slate-900 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-600 transition-colors whitespace-nowrap shadow-sm block">
-                                            Apply Now
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    html += `</div>`;
-                }
-                html += `</div>`;
-
-            } else if (activeTab === 'admin') {
-                if (!isAuthenticated) {
-                    // Login Form
-                    html += `
-                        <div class="max-w-md mx-auto mt-10">
-                            <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm text-center">
-                                <div class="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <i data-lucide="lock" class="text-blue-600 w-8 h-8"></i>
-                                </div>
-                                <h2 class="text-2xl font-bold text-slate-900 mb-2">Admin Access</h2>
-                                <p class="text-slate-500 mb-6 text-sm">Please enter the password to post or manage jobs.</p>
-                                <form onsubmit="handleLogin(event)" class="space-y-4">
-                                    <input type="password" id="admin_password" required placeholder="Enter password" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"/>
-                                    <button type="submit" class="w-full bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors flex justify-center items-center gap-2">
-                                        <i data-lucide="unlock" class="w-4 h-4"></i> Unlock Panel
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // Admin Panel
-                    const jobToEdit = editingJobId ? jobs.find(j => j.id === editingJobId) : null;
-                    
-                    html += `
-                        <div class="max-w-2xl mx-auto">
-                            <div class="mb-6 flex justify-between items-start">
-                                <div>
-                                    <h2 class="text-2xl font-bold text-slate-900">${editingJobId ? 'Edit Job Post' : 'Post a New Job'}</h2>
-                                    <p class="text-slate-500">${editingJobId ? 'Update the details of your job post below.' : 'Fill out the form below to publish a job on the board.'}</p>
-                                </div>
-                                <button onclick="handleLogout()" class="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
-                                    <i data-lucide="lock" class="w-4 h-4"></i> Lock Panel
-                                </button>
-                            </div>
-
-                            <form onsubmit="handlePostJob(event)" class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
-                                <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Job Title</label>
-                                    <input type="text" id="job_title" required value="${jobToEdit ? jobToEdit.title : ''}" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Senior Frontend Developer"/>
-                                </div>
-
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-slate-700 mb-2">Company Name</label>
-                                        <input type="text" id="company_name" required value="${jobToEdit ? jobToEdit.company : ''}" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Google Bangladesh"/>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-semibold text-slate-700 mb-2">Location</label>
-                                        <input type="text" id="job_location" required value="${jobToEdit ? jobToEdit.location : ''}" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Dhaka (Remote)"/>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-slate-700 mb-2">Job Type</label>
-                                        <select id="job_type" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                            <option value="Full-time" ${jobToEdit && jobToEdit.type === 'Full-time' ? 'selected' : ''}>Full-time</option>
-                                            <option value="Part-time" ${jobToEdit && jobToEdit.type === 'Part-time' ? 'selected' : ''}>Part-time</option>
-                                            <option value="Contract" ${jobToEdit && jobToEdit.type === 'Contract' ? 'selected' : ''}>Contract</option>
-                                            <option value="Internship" ${jobToEdit && jobToEdit.type === 'Internship' ? 'selected' : ''}>Internship</option>
-                                            <option value="Freelance" ${jobToEdit && jobToEdit.type === 'Freelance' ? 'selected' : ''}>Freelance</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-semibold text-slate-700 mb-2">Application Link</label>
-                                        <input type="url" id="apply_link" required value="${jobToEdit ? jobToEdit.applyLink : ''}" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. https://forms.gle/..."/>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Job Description</label>
-                                    <textarea id="job_description" required rows="4" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Describe the role...">${jobToEdit ? jobToEdit.description : ''}</textarea>
-                                </div>
-
-                                <div class="pt-4 border-t border-slate-100 flex justify-end gap-3">
-                                    <button type="button" onclick="${editingJobId ? 'editJob(null)' : "switchTab('board')"}" class="px-6 py-2.5 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
-                                    <button type="submit" class="bg-blue-600 text-white px-8 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm">
-                                        ${editingJobId ? 'Update Job' : 'Publish Job'}
-                                    </button>
-                                </div>
-                            </form>
-
-                            ${jobs.length > 0 ? `
-                                <div class="mt-10 mb-10">
-                                    <h3 class="text-lg font-bold text-slate-900 mb-4">Manage Posted Jobs</h3>
-                                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                                        ${jobs.map(job => `
-                                            <div class="flex items-center justify-between p-4 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                                                <div>
-                                                    <p class="font-semibold text-slate-800">${job.title}</p>
-                                                    <p class="text-sm text-slate-500">${job.company}</p>
-                                                </div>
-                                                <div class="flex gap-2">
-                                                    <button onclick="editJob(${job.id})" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Job"><i data-lucide="edit" class="w-4 h-4"></i></button>
-                                                    <button onclick="deleteJob(${job.id})" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Job"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                                                </div>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                }
+            document.getElementById('nav-board').className = tab === 'board' ? 'px-4 py-2 rounded-md font-medium transition-colors bg-blue-50 text-blue-700 flex items-center gap-2' : 'px-4 py-2 rounded-md font-medium transition-colors text-slate-600 hover:bg-slate-100 flex items-center gap-2';
+            document.getElementById('nav-admin').className = tab === 'admin' ? 'px-4 py-2 rounded-md font-medium transition-colors bg-blue-600 text-white flex items-center gap-2' : 'px-4 py-2 rounded-md font-medium transition-colors bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-2';
+            
+            if (tab === 'admin') {
+                document.getElementById('login-screen').classList.toggle('hidden', window.isLoggedIn);
+                document.getElementById('admin-dashboard').classList.toggle('hidden', !window.isLoggedIn);
+                if(window.isLoggedIn) window.renderAdminList();
             }
+        };
 
-            html += `</main>`;
-
-            // 3. Footer
-            html += `
-                <footer class="bg-white border-t border-slate-200 py-8 mt-auto">
-                    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                            <p class="text-slate-500 text-sm">© ${new Date().getFullYear()} BD JobHub. All rights reserved.</p>
-                            
-                            <div class="flex items-center gap-6">
-                                <a href="#" onclick="openModal('terms'); return false;" class="text-sm text-slate-500 hover:text-blue-600 font-medium transition-colors">Terms of Use</a>
-                                <a href="#" onclick="openModal('privacy'); return false;" class="text-sm text-slate-500 hover:text-blue-600 font-medium transition-colors">Privacy Policy</a>
-                            </div>
-
-                            <div class="flex items-center gap-3">
-                                <a href="#" class="w-8 h-8 rounded-full bg-[#1877F2] text-white flex items-center justify-center hover:opacity-90 transition-opacity">
-                                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                                </a>
-                                <a href="#" class="w-8 h-8 rounded-full bg-[#000000] text-white flex items-center justify-center hover:opacity-90 transition-opacity">
-                                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                                </a>
-                                <a href="#" class="w-8 h-8 rounded-full bg-[#0A66C2] text-white flex items-center justify-center hover:opacity-90 transition-opacity">
-                                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </footer>
-            `;
-
-            // 4. Modal Output (if activeModal is true)
-            if (activeModal) {
-                const title = activeModal === 'terms' ? 'Terms of Use' : 'Privacy Policy';
-                const content = activeModal === 'terms' ? TERMS_CONTENT : PRIVACY_CONTENT;
-                
-                html += `
-                    <div id="modal-overlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col relative modal-animate">
-                            
-                            <!-- Modal Header -->
-                            <div class="flex justify-between items-center p-5 border-b border-slate-100">
-                                <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                    <i data-lucide="${activeModal === 'terms' ? 'file-text' : 'shield'}" class="w-5 h-5 text-blue-600"></i>
-                                    ${title}
-                                </h2>
-                                <button onclick="closeModal()" class="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50 focus:outline-none">
-                                    <i data-lucide="x" class="w-5 h-5"></i>
-                                </button>
-                            </div>
-                            
-                            <!-- Modal Body -->
-                            <div class="p-6 overflow-y-auto text-slate-600 text-sm leading-relaxed">
-                                ${content}
-                            </div>
-                            
-                            <!-- Modal Footer -->
-                            <div class="p-5 border-t border-slate-100 flex justify-end">
-                                <button onclick="closeModal()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm">
-                                    I Understand
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
+        window.login = () => {
+            const pass = document.getElementById('admin-password').value;
+            if (pass === ADMIN_PASS) {
+                window.isLoggedIn = true;
+                document.getElementById('admin-password').value = '';
+                window.showTab('admin');
+            } else {
+                document.getElementById('admin-password').value = '';
+                document.getElementById('admin-password').classList.add('border-red-500');
+                setTimeout(() => document.getElementById('admin-password').classList.remove('border-red-500'), 1000);
             }
+        };
 
-            // Insert HTML and Initialize Icons
-            app.innerHTML = html;
+        window.logout = () => {
+            window.isLoggedIn = false;
+            window.resetForm(true);
+            window.showTab('admin');
+        };
+
+        window.filterJobs = () => {
+            const query = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
+            const filtered = window.jobs.filter(job => 
+                job.title.toLowerCase().includes(query) || 
+                job.company.toLowerCase().includes(query) ||
+                job.location.toLowerCase().includes(query) ||
+                job.description.toLowerCase().includes(query)
+            );
+            window.renderJobs(filtered);
+        };
+
+        window.toggleDesc = (id) => {
+            if(window.expandedJobIds.has(id)) window.expandedJobIds.delete(id);
+            else window.expandedJobIds.add(id);
+            window.filterJobs();
+        };
+
+        window.renderJobs = (jobsToRender = window.jobs) => {
+            const container = document.getElementById('job-list');
+            const countEl = document.getElementById('job-count');
+            
+            countEl.innerText = `${jobsToRender.length} jobs available`;
+            
+            if (jobsToRender.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 bg-white rounded-xl border border-slate-200">
+                        <i data-lucide="briefcase" class="mx-auto h-12 w-12 text-slate-300 mb-3"></i>
+                        <h3 class="text-lg font-medium text-slate-900">No jobs found</h3>
+                        <p class="text-slate-500 mt-1">Try adjusting your search or check back later.</p>
+                    </div>`;
+            } else {
+                container.innerHTML = jobsToRender.map(job => {
+                    const isExpanded = window.expandedJobIds.has(job.id);
+                    const isLong = job.description.length > 150;
+                    return `
+                    <div class="bg-white border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow group">
+                        <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">${job.title}</h3>
+                                <p class="text-slate-600 font-medium mt-1">${job.company}</p>
+                                
+                                <div class="flex flex-wrap items-center gap-4 mt-3 text-sm text-slate-500">
+                                    <div class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-4 h-4"></i> <span>${job.location}</span></div>
+                                    <div class="flex items-center gap-1.5"><i data-lucide="clock" class="w-4 h-4"></i> <span>${job.date}</span></div>
+                                    <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold">${job.type}</span>
+                                </div>
+                                
+                                <div class="mt-4 text-slate-600 text-sm leading-relaxed">
+                                    <p class="${!isExpanded && isLong ? 'line-clamp-2' : ''}">${job.description}</p>
+                                    ${isLong ? `
+                                        <button onclick="toggleDesc('${job.id}')" class="text-blue-600 font-medium hover:underline mt-1 flex items-center gap-1">
+                                            ${isExpanded ? `Show Less <i data-lucide="chevron-up" class="w-4 h-4"></i>` : `See More <i data-lucide="chevron-down" class="w-4 h-4"></i>`}
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-col items-end gap-3 mt-4 md:mt-0 flex-shrink-0">
+                                <a href="${job.applyLink || '#'}" target="_blank" rel="noopener noreferrer" class="w-full md:w-auto text-center bg-slate-900 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-600 transition-colors shadow-sm block">Apply Now</a>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
             lucide.createIcons();
-        }
+            if(window.isLoggedIn) window.renderAdminList();
+        };
 
-        // Initial Render
-        render();
+        // ================= DATABASE FUNCTIONS =================
 
+        window.handlePostJob = async (e) => {
+            e.preventDefault();
+            if(!db || !currentUser) {
+                alert("Database is not connected! If on Vercel, please add Firebase Config.");
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = "Saving..."; btn.disabled = true;
+
+            const jobData = {
+                title: document.getElementById('title').value,
+                company: document.getElementById('company').value,
+                location: document.getElementById('location').value,
+                type: document.getElementById('jobType').value,
+                applyLink: document.getElementById('applyLink').value,
+                description: document.getElementById('description').value,
+                date: new Date().toLocaleDateString(),
+                createdAt: window.editingJobId ? window.jobs.find(j=>j.id===window.editingJobId).createdAt : Date.now()
+            };
+
+            const id = window.editingJobId ? window.editingJobId.toString() : Date.now().toString();
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'jobs', id), jobData);
+                window.resetForm();
+                window.showTab('board');
+            } catch(err) {
+                console.error(err);
+                alert("Failed to save post.");
+            } finally {
+                btn.innerText = "Publish Job"; btn.disabled = false;
+            }
+        };
+
+        window.renderAdminList = () => {
+            const container = document.getElementById('admin-job-list');
+            if (window.jobs.length === 0) {
+                document.getElementById('admin-job-list-container').classList.add('hidden');
+                return;
+            }
+            document.getElementById('admin-job-list-container').classList.remove('hidden');
+            
+            container.innerHTML = window.jobs.map(job => `
+                <div class="flex items-center justify-between p-4 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                    <div>
+                        <p class="font-semibold text-slate-800">${job.title}</p>
+                        <p class="text-sm text-slate-500">${job.company}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editJob('${job.id}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                        <button onclick="deleteJob('${job.id}')" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        };
+
+        window.editJob = (id) => {
+            const job = window.jobs.find(j => j.id === id);
+            if(!job) return;
+            
+            window.editingJobId = id;
+            document.getElementById('title').value = job.title;
+            document.getElementById('company').value = job.company;
+            document.getElementById('location').value = job.location;
+            document.getElementById('jobType').value = job.type;
+            document.getElementById('applyLink').value = job.applyLink || '';
+            document.getElementById('description').value = job.description;
+            
+            document.getElementById('form-title').innerText = 'Edit Job Post';
+            document.getElementById('form-subtitle').innerText = 'Update the details of your job post below.';
+            document.getElementById('submitBtn').innerText = 'Update Job';
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.deleteJob = async (id) => {
+            if(!db || !currentUser) return;
+            if(confirm("Are you sure you want to delete this job?")) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'jobs', id.toString()));
+                } catch(err) { console.error(err); }
+            }
+        };
+
+        window.resetForm = (full = false) => {
+            document.getElementById('jobForm').reset();
+            window.editingJobId = null;
+            document.getElementById('form-title').innerText = 'Post a New Job';
+            document.getElementById('form-subtitle').innerText = 'Fill out the form below to publish a job on the board.';
+            document.getElementById('submitBtn').innerText = 'Publish Job';
+            if(full && window.isLoggedIn) window.showTab('board');
+        };
+
+        // Modal Logistics (Terms & Privacy)
+        window.TERMS_CONTENT = `
+            <h3>1. Acceptance of Terms</h3>
+            <p>By accessing and using BD JobHub, you accept and agree to be bound by the terms and provision of this agreement.</p>
+            <h3>2. User Responsibilities</h3>
+            <p>You agree to use the platform only for lawful purposes. Job postings must be authentic, and applications must be genuine.</p>
+            <h3>3. Modification</h3>
+            <p>We reserve the right to modify these terms at any time. Your continued use of the platform constitutes your agreement to such changes.</p>
+        `;
+
+        window.PRIVACY_CONTENT = `
+            <h3>1. Information Collection</h3>
+            <p>We collect information you provide directly to us when you post a job, including company details and application links.</p>
+            <h3>2. Data Usage</h3>
+            <p>Your information is used solely to display job opportunities to potential candidates.</p>
+            <h3>3. Data Protection</h3>
+            <p>We implement reasonable security measures to protect your data, but no electronic transmission is entirely secure.</p>
+        `;
+
+        window.openModal = (title, content) => {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalContent').innerHTML = content;
+            document.getElementById('infoModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeModal = () => {
+            document.getElementById('infoModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        };
+
+        // Initial setup on load
+        lucide.createIcons();
     </script>
 </body>
 </html>
