@@ -224,17 +224,15 @@
         // 🔥 VERCEL DEPLOYMENT CONFIGURATION 🔥
         // To make this work on Vercel permanently, replace `null` with your Firebase Config object!
         // Example: const USER_FIREBASE_CONFIG = { apiKey: "AIza...", authDomain: "...", projectId: "..." };
-        const USER_FIREBASE_CONFIG = // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyCgDqnAua7BvuqKtoQtLgzvjYr4bYRacSc",
-  authDomain: "jobhubbd.firebaseapp.com",
-  projectId: "jobhubbd",
-  storageBucket: "jobhubbd.firebasestorage.app",
-  messagingSenderId: "66568703977",
-  appId: "1:66568703977:web:5310f5121027a887354578",
-  measurementId: "G-9S8RCHXR81"
-}; 
+        const USER_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCgDqnAua7BvuqKtoQtLgzvjYr4bYRacSc",
+            authDomain: "jobhubbd.firebaseapp.com",
+            projectId: "jobhubbd",
+            storageBucket: "jobhubbd.firebasestorage.app",
+            messagingSenderId: "66568703977",
+            appId: "1:66568703977:web:5310f5121027a887354578",
+            measurementId: "G-9S8RCHXR81"
+        };
         // ==========================================
 
         const configToUse = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : USER_FIREBASE_CONFIG;
